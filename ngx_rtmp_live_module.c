@@ -108,6 +108,20 @@ static ngx_command_t  ngx_rtmp_live_commands[] = {
       offsetof(ngx_rtmp_live_app_conf_t, idle_timeout),
       NULL },
 
+    { ngx_string("publish_auth"),
+      NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_flag_slot,
+      NGX_RTMP_APP_CONF_OFFSET,
+      offsetof(ngx_rtmp_live_app_conf_t, publish_auth),
+      NULL },
+
+    { ngx_string("publish_auth_key"),
+      NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_RTMP_APP_CONF_OFFSET,
+      offsetof(ngx_rtmp_live_app_conf_t, publish_auth_key),
+      NULL },
+
       ngx_null_command
 };
 
@@ -1032,6 +1046,22 @@ ngx_rtmp_live_av(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
                               &ctx->stream->bw_in_audio :
                               &ctx->stream->bw_in_video,
                               h->mlen);
+
+    ngx_rtmp_update_frame(h->type == NGX_RTMP_MSG_AUDIO ?
+                              &ctx->stream->bw_in_audio :
+                              &ctx->stream->bw_in_video,
+                              1);
+
+    if (h->type == NGX_RTMP_MSG_AUDIO) {
+        ngx_log_debug2(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
+                       "audio: frames=%uD fps=%uD",
+                       ctx->stream->bw_in_audio.frames, ctx->stream->bw_in_audio.fps);
+    }
+    else {
+        ngx_log_debug2(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
+                       "video: frames=%uD fps=%uD",
+                       ctx->stream->bw_in_video.frames, ctx->stream->bw_in_video.fps);
+    }
 
     return NGX_OK;
 }

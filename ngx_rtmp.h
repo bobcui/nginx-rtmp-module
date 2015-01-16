@@ -328,6 +328,8 @@ typedef struct ngx_rtmp_core_srv_conf_s {
     size_t                  out_cork;
     ngx_msec_t              buflen;
 
+    ngx_int_t               stat_interval;
+
     ngx_rtmp_conf_ctx_t    *ctx;
 } ngx_rtmp_core_srv_conf_t;
 
@@ -616,5 +618,6 @@ extern ngx_thread_volatile ngx_event_t     *ngx_rtmp_init_queue;
 extern ngx_uint_t                           ngx_rtmp_max_module;
 extern ngx_module_t                         ngx_rtmp_core_module;
 
+extern ngx_int_t                           ngx_rtmp_stat_interval;
 
 #endif /* _NGX_RTMP_H_INCLUDED_ */

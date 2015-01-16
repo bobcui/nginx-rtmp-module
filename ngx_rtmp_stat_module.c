@@ -249,6 +249,7 @@ ngx_rtmp_stat_output(ngx_http_request_t *r, ngx_chain_t ***lll,
 #define NGX_RTMP_STAT_BYTES         0x02
 #define NGX_RTMP_STAT_BW_BYTES      0x03
 
+#define NGX_RTMP_STAT_FPS           0x04
 
 static void
 ngx_rtmp_stat_bw(ngx_http_request_t *r, ngx_chain_t ***lll,
@@ -257,7 +258,7 @@ ngx_rtmp_stat_bw(ngx_http_request_t *r, ngx_chain_t ***lll,
 {
     u_char  buf[NGX_INT64_LEN + 9];
 
-    ngx_rtmp_update_bandwidth(bw, 0);
+    ngx_rtmp_update_stat(bw);
 
     if (flags & NGX_RTMP_STAT_BW) {
         NGX_RTMP_STAT_L("<bw_");
@@ -274,6 +275,24 @@ ngx_rtmp_stat_bw(ngx_http_request_t *r, ngx_chain_t ***lll,
         NGX_RTMP_STAT_CS(name);
         NGX_RTMP_STAT(buf, ngx_snprintf(buf, sizeof(buf), ">%uL</bytes_",
                                         bw->bytes)
+                           - buf);
+        NGX_RTMP_STAT_CS(name);
+        NGX_RTMP_STAT_L(">\r\n");
+    }
+
+    if (flags & NGX_RTMP_STAT_FPS) {
+        NGX_RTMP_STAT_L("<fps_");
+        NGX_RTMP_STAT_CS(name);
+        NGX_RTMP_STAT(buf, ngx_snprintf(buf, sizeof(buf), ">%uL</fps_",
+                                        bw->fps)
+                           - buf);
+        NGX_RTMP_STAT_CS(name);
+        NGX_RTMP_STAT_L(">\r\n");
+
+        NGX_RTMP_STAT_L("<frames_");
+        NGX_RTMP_STAT_CS(name);
+        NGX_RTMP_STAT(buf, ngx_snprintf(buf, sizeof(buf), ">%uL</frames_",
+                                        bw->frames)
                            - buf);
         NGX_RTMP_STAT_CS(name);
         NGX_RTMP_STAT_L(">\r\n");
@@ -451,8 +470,12 @@ ngx_rtmp_stat_live(ngx_http_request_t *r, ngx_chain_t ***lll,
                              NGX_RTMP_STAT_BW_BYTES);
             ngx_rtmp_stat_bw(r, lll, &stream->bw_in_audio, "audio",
                              NGX_RTMP_STAT_BW);
+            ngx_rtmp_stat_bw(r, lll, &stream->bw_in_audio, "audio",
+                             NGX_RTMP_STAT_FPS);
             ngx_rtmp_stat_bw(r, lll, &stream->bw_in_video, "video",
                              NGX_RTMP_STAT_BW);
+            ngx_rtmp_stat_bw(r, lll, &stream->bw_in_video, "video",
+                             NGX_RTMP_STAT_FPS);
 
             nclients = 0;
             codec = NULL;

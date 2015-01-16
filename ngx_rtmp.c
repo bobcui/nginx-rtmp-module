@@ -40,7 +40,7 @@ ngx_thread_volatile ngx_event_t    *ngx_rtmp_init_queue;
 
 
 ngx_uint_t  ngx_rtmp_max_module;
-
+ngx_int_t  ngx_rtmp_stat_interval = 30;
 
 static ngx_command_t  ngx_rtmp_commands[] = {
 
@@ -108,7 +108,6 @@ ngx_rtmp_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
         ngx_modules[m]->ctx_index = ngx_rtmp_max_module++;
     }
-
 
     /* the rtmp main_conf context, it is the same in the all rtmp contexts */
 
@@ -271,11 +270,12 @@ ngx_rtmp_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
                     *cf = pcf;
                     return rv;
                 }
+
+                ngx_rtmp_stat_interval = cscf->stat_interval;                
             }
 
         }
     }
-
 
     if (ngx_rtmp_init_events(cf, cmcf) != NGX_OK) {
         return NGX_CONF_ERROR;
