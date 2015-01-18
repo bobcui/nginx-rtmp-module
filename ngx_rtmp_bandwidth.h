@@ -22,7 +22,7 @@ typedef struct {
     time_t              intl_end;
     uint64_t            intl_bytes;
 
-    uint32_t            frames;
+    uint64_t            frames;
     uint32_t            intl_frames;
     uint32_t            fps;    
 

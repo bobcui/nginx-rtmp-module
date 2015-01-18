@@ -1052,16 +1052,16 @@ ngx_rtmp_live_av(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
                               &ctx->stream->bw_in_video,
                               1);
 
-    if (h->type == NGX_RTMP_MSG_AUDIO) {
-        ngx_log_debug2(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
-                       "audio: frames=%uD fps=%uD",
-                       ctx->stream->bw_in_audio.frames, ctx->stream->bw_in_audio.fps);
-    }
-    else {
-        ngx_log_debug2(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
-                       "video: frames=%uD fps=%uD",
-                       ctx->stream->bw_in_video.frames, ctx->stream->bw_in_video.fps);
-    }
+    // if (h->type == NGX_RTMP_MSG_AUDIO) {
+    //     ngx_log_debug2(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
+    //                    "audio: frames=%uD fps=%uD",
+    //                    ctx->stream->bw_in_audio.frames, ctx->stream->bw_in_audio.fps);
+    // }
+    // else {
+    //     ngx_log_debug2(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
+    //                    "video: frames=%uD fps=%uD",
+    //                    ctx->stream->bw_in_video.frames, ctx->stream->bw_in_video.fps);
+    // }
 
     return NGX_OK;
 }

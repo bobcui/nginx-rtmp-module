@@ -12,6 +12,8 @@
 #include "ngx_rtmp_netcall_module.h"
 #include "ngx_rtmp_record_module.h"
 #include "ngx_rtmp_relay_module.h"
+#include "ngx_rtmp_live_module.h"
+#include "ngx_rtmp_codec_module.h"
 
 
 static ngx_rtmp_connect_pt                      next_connect;
@@ -521,10 +523,21 @@ ngx_rtmp_notify_publish_create(ngx_rtmp_session_t *s, void *arg,
         ngx_pool_t *pool)
 {
     ngx_rtmp_publish_t             *v = arg;
-
     ngx_chain_t                    *pl;
     ngx_buf_t                      *b;
     size_t                          name_len, type_len, args_len;
+    // ngx_rtmp_codec_ctx_t           *codec;
+
+    // codec = ngx_rtmp_get_module_ctx(s, ngx_rtmp_codec_module);
+
+    // if (codec == NULL) {
+    //     ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
+    //            "on_publish: codec not found for clientid=%ui", (ngx_uint_t) s->connection->number);
+    // }
+    // else {
+    //     ngx_log_error(NGX_LOG_INFO, s->connection->log, 0,
+    //            "on_publish: codec found for clientid=%ui framerate=%ui", (ngx_uint_t) s->connection->number, codec->frame_rate);
+    // }
 
     pl = ngx_alloc_chain_link(pool);
     if (pl == NULL) {
@@ -663,6 +676,97 @@ ngx_rtmp_notify_done_create(ngx_rtmp_session_t *s, void *arg,
     if (args_len) {
         *b->last++ = '&';
         b->last = (u_char *) ngx_cpymem(b->last, ctx->args, args_len);
+    }
+
+    return ngx_rtmp_notify_create_request(s, pool, ds->url_idx, pl);
+}
+
+
+static ngx_chain_t *
+ngx_rtmp_notify_publish_done_create(ngx_rtmp_session_t *s, void *arg,
+        ngx_pool_t *pool)
+{
+    ngx_rtmp_notify_done_t         *ds = arg;
+
+    ngx_chain_t                    *pl;
+    ngx_buf_t                      *b;
+    size_t                          cbname_len, name_len, args_len;
+    ngx_rtmp_notify_ctx_t          *ctx;
+    ngx_rtmp_live_ctx_t            *lctx;
+
+    ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_notify_module);
+    lctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_live_module);
+
+    pl = ngx_alloc_chain_link(pool);
+    if (pl == NULL) {
+        return NULL;
+    }
+
+    cbname_len = ngx_strlen(ds->cbname);
+    name_len = ctx ? ngx_strlen(ctx->name) : 0;
+    args_len = ctx ? ngx_strlen(ctx->args) : 0;
+
+    b = ngx_create_temp_buf(pool,
+                            sizeof("&call=") + cbname_len +
+                            sizeof("&name=") + name_len * 3 +
+                            sizeof("&beginTime=") + NGX_INT32_LEN + 
+                            sizeof("&endTime=") + NGX_INT32_LEN +
+                            sizeof("&bytes_in=") + NGX_INT64_LEN +
+                            sizeof("&bytes_out=") + NGX_INT64_LEN +
+                            sizeof("&bytes_in_video=") + NGX_INT64_LEN +
+                            sizeof("&bytes_in_audio=") + NGX_INT64_LEN +
+                            sizeof("&frames_in_video=") + NGX_INT32_LEN +
+                            sizeof("&frames_in_audio=") + NGX_INT32_LEN +
+                            1 + args_len);
+    if (b == NULL) {
+        return NULL;
+    }
+
+    pl->buf = b;
+    pl->next = NULL;
+
+    b->last = ngx_cpymem(b->last, (u_char*) "&call=", sizeof("&call=") - 1);
+    b->last = ngx_cpymem(b->last, ds->cbname, cbname_len);
+
+    if (name_len) {
+        b->last = ngx_cpymem(b->last, (u_char*) "&name=", sizeof("&name=") - 1);
+        b->last = (u_char*) ngx_escape_uri(b->last, ctx->name, name_len,
+                                           NGX_ESCAPE_ARGS);
+    }
+
+    if (args_len) {
+        *b->last++ = '&';
+        b->last = (u_char *) ngx_cpymem(b->last, ctx->args, args_len);
+    }
+
+    if (lctx && lctx->stream) {
+        b->last = ngx_cpymem(b->last, (u_char*) "&beginTime=", sizeof("&beginTime=") -1);
+        b->last = ngx_sprintf(b->last, "%uD", (uint32_t) (lctx->stream->epoch / 1000)); 
+
+        b->last = ngx_cpymem(b->last, (u_char*) "&endTime=", sizeof("&endTime=") -1);
+        b->last = ngx_sprintf(b->last, "%uD", (uint32_t) (ngx_current_msec / 1000)); 
+
+        b->last = ngx_cpymem(b->last, (u_char*) "&bytes_in=", sizeof("&bytes_in=") -1);
+        b->last = ngx_sprintf(b->last, "%uL", lctx->stream->bw_in.bytes);
+
+        b->last = ngx_cpymem(b->last, (u_char*) "&bytes_out=", sizeof("&bytes_out=") -1);
+        b->last = ngx_sprintf(b->last, "%uL", lctx->stream->bw_out.bytes);
+
+        b->last = ngx_cpymem(b->last, (u_char*) "&bytes_in_video=", sizeof("&bytes_in_video=") -1);
+        b->last = ngx_sprintf(b->last, "%uL", lctx->stream->bw_in_video.bytes);
+
+        b->last = ngx_cpymem(b->last, (u_char*) "&bytes_in_audio=", sizeof("&bytes_in_audio=") -1);
+        b->last = ngx_sprintf(b->last, "%uL", lctx->stream->bw_in_audio.bytes);
+
+        b->last = ngx_cpymem(b->last, (u_char*) "&frames_in_video=", sizeof("&frames_in_video=") -1);
+        b->last = ngx_sprintf(b->last, "%uL", lctx->stream->bw_in_video.frames);
+
+        b->last = ngx_cpymem(b->last, (u_char*) "&frames_in_audio=", sizeof("&frames_in_audio=") -1);
+        b->last = ngx_sprintf(b->last, "%uL", lctx->stream->bw_in_audio.frames);
+    }
+    else {
+        ngx_log_error(NGX_LOG_ERR, s->connection->log, 0,
+               "on_publish_done: lctx->stream not found for clientid=%ui", (ngx_uint_t) s->connection->number);
     }
 
     return ngx_rtmp_notify_create_request(s, pool, ds->url_idx, pl);
@@ -1539,7 +1643,13 @@ ngx_rtmp_notify_done(ngx_rtmp_session_t *s, char *cbname, ngx_uint_t url_idx)
 
     ci.url = url;
     ci.arg = &ds;
-    ci.create = ngx_rtmp_notify_done_create;
+
+    if (url_idx == NGX_RTMP_NOTIFY_PUBLISH_DONE) {
+        ci.create = ngx_rtmp_notify_publish_done_create;
+    }
+    else {
+        ci.create = ngx_rtmp_notify_done_create;
+    }
 
     return ngx_rtmp_netcall_create(s, &ci);
 }
